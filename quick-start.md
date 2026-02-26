@@ -207,9 +207,10 @@ console.log(result);
 
 ## Resources
 
+- Website: https://oarn-network.github.io/oarn-website/
 - Documentation: https://github.com/oarn-network/oarn-docs
 - GitHub: https://github.com/oarn-network
-- Discord: https://discord.gg/RsrQwNvt (OARN Network - Decentralized AI Research Network)
+- Discord: https://discord.gg/RsrQwNvt
 - Twitter: https://twitter.com/OARNNetwork
 
 ## Troubleshooting
