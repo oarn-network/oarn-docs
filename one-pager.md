@@ -50,9 +50,17 @@
 
 ### Current Status
 - Testnet live on Arbitrum Sepolia
-- Multi-node consensus tested and working
-- 183 contract tests passing
+- Multi-node consensus verified (3/3)
+- 190 contract tests passing
+- SDK v0.2.0 on npm (@oarnnetwork/sdk)
+- Crowdfunding feature live (fundTask)
+- GENESIS-001 MVP complete
 - Docker deployment ready
+
+### Raising
+- **Round:** Seed ($1.5M target)
+- **Structure:** SAFE
+- **Use:** Engineering, Infrastructure, Community
 
 ### Links
 - Website: https://oarn.network

@@ -83,7 +83,7 @@ Low fees ($0.01/tx), fast finality (250ms), Ethereum security. Perfect for micro
 
 | Metric | Value |
 |--------|-------|
-| Tests Passing | **183** |
+| Tests Passing | **190** |
 | Open Source | **100%** |
 | Status | **Live on Testnet** |
 
@@ -164,9 +164,11 @@ Developers deploy models, users pay per inference. Built-in payments and verific
 - ✅ Multi-node consensus (TaskRegistryV2) - 3+ nodes verify results
 - ✅ Batch task processing - 10,000+ params in single transaction
 - ✅ Real ONNX inference - Production ML execution
-- ✅ SDK published to npm (@oarnnetwork/sdk)
+- ✅ SDK v0.2.0 published to npm (@oarnnetwork/sdk)
+- ✅ Crowdfunding feature (fundTask) live
 - ✅ Docker deployment ready
 - ✅ Internal security review complete
+- ✅ 190 tests passing across all contracts
 
 ---
 
