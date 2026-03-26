@@ -4,9 +4,9 @@ Get up and running with OARN in 10 minutes.
 
 ## For Users (Submit AI Tasks)
 
-### Option 1: Web Interface (Coming Soon)
+### Option 1: Web Interface
 
-Visit https://oarn.network to submit tasks through the web UI.
+Visit the **[OARN Dashboard](https://oarn-dashboard.vercel.app/)** to submit tasks, monitor results, and manage your node through the web UI.
 
 ### Option 2: Command Line
 
