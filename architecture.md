@@ -20,9 +20,17 @@ This document describes the technical architecture of the Open AI Research Netwo
         |                                   |                                  |
         v                                   v                                  v
 +-------------------+              +-------------------+              +-------------------+
-|   Task Submission |              |   TaskRegistry    |              |   IPFS Storage    |
+|   Task Submission |              |  TaskRegistryV2   |              |   IPFS Storage    |
 |   (via Node)      | -----------> |   GOV/COMP Tokens | <----------- |   (Models/Data)   |
 +-------------------+              +-------------------+              +-------------------+
+                                           |
+                                           | task results
+                                           v
+                                  +-------------------+
+                                  |   WetLabOracle    |
+                                  | Physical lab data |
+                                  | anchored on-chain |
+                                  +-------------------+
 ```
 
 ## Core Components
@@ -34,10 +42,22 @@ Located in `oarn-contracts/`:
 ```
 contracts/
 ├── OARNRegistry.sol      # Central discovery registry
-├── TaskRegistry.sol      # Task lifecycle management
+├── TaskRegistry.sol      # Task lifecycle management (V1, deprecated)
+├── TaskRegistryV2.sol    # Task lifecycle with fundTask (current)
+├── WetLabOracle.sol      # Physical experiment result oracle
+├── Governance.sol        # On-chain governance
 ├── GOVToken.sol          # Governance token (ERC-20 + Votes)
 └── COMPToken.sol         # Compute reward token (ERC-20)
 ```
+
+#### Deployed Addresses (Arbitrum Sepolia — Chain ID 421614)
+
+| Contract | Address |
+|----------|---------|
+| OARNRegistry | `0xa122518Cb6E66A804fc37EB26c8a7aF309dCF04C` |
+| TaskRegistryV2 | `0xD15530ce13188EE88E43Ab07EDD9E8729fCc55D0` |
+| WetLabOracle | `0xF8991A56cB5B9073a3eEC87E95Dfb055fdDF0094` |
+| OARNGovernance | `0x56D2826FF4FaEF8d4Db54eF11e86d0421fc2893B` |
 
 #### OARNRegistry
 
@@ -48,15 +68,27 @@ The **single entry point** for all OARN infrastructure discovery:
 - **Staking mechanism**: Providers stake GOV tokens, can be slashed for misbehavior
 - **No hardcoded values**: Clients discover everything through this contract
 
-#### TaskRegistry
+#### TaskRegistryV2
 
 Manages the complete task lifecycle:
 
 1. **Submission**: Users submit tasks with model CID, input CID, requirements
-2. **Claiming**: Nodes claim tasks they can execute
-3. **Execution**: Node runs inference and submits result
-4. **Verification**: Optional validator verification
-5. **Reward**: COMP tokens distributed to executor
+2. **Crowdfunding**: Anyone can add ETH to a task via `fundTask()` to increase rewards
+3. **Claiming**: Nodes claim tasks they can execute
+4. **Execution**: Node runs inference and submits result
+5. **Consensus**: Multiple nodes must agree before rewards are distributed
+6. **Reward**: ETH distributed to nodes that reached consensus
+
+#### WetLabOracle
+
+Closes the loop between AI prediction and physical reality:
+
+1. **Certification**: Owner certifies trusted wet labs via `certifyLab()`
+2. **Submission**: Certified labs submit physical experiment results on-chain
+3. **Consensus**: When `requiredLabConfirmations` labs agree on the same result hash, consensus is reached
+4. **Reward**: GOV tokens credited to confirming labs via pull-based `claimReward()`
+
+This enables the full closed-loop scientific discovery cycle: OARN compute → wet lab validation → results anchored to Arbitrum → model refinement.
 
 #### Token System
 
@@ -290,6 +322,13 @@ Content-addressed storage for:
 Network: Arbitrum Sepolia (Chain ID: 421614)
 ENS: Not yet registered
 Discovery: Manual RPC URL for bootstrap
+Dashboard: https://oarn-dashboard.vercel.app/
+
+Deployed contracts:
+  OARNRegistry:   0xa122518Cb6E66A804fc37EB26c8a7aF309dCF04C
+  TaskRegistryV2: 0xD15530ce13188EE88E43Ab07EDD9E8729fCc55D0
+  WetLabOracle:   0xF8991A56cB5B9073a3eEC87E95Dfb055fdDF0094
+  OARNGovernance: 0x56D2826FF4FaEF8d4Db54eF11e86d0421fc2893B
 ```
 
 ### Mainnet (Target)
