@@ -1,6 +1,6 @@
 # OARN Network - Internal Security Review
 
-**Date:** 2026-03-01
+**Date:** 2026-03-01 (updated 2026-03-26 — WetLabOracle addendum)
 **Reviewer:** Internal Security Audit
 **Scope:** Smart Contracts + Node Software
 
@@ -10,11 +10,12 @@
 
 | Component | Critical | High | Medium | Low | Info |
 |-----------|----------|------|--------|-----|------|
-| Smart Contracts | 1 | 3 | 5 | 5 | 5 |
+| Smart Contracts (original) | 1 | 3 | 5 | 5 | 5 |
 | Node (Rust) | 0 | 2 | 5 | 5 | 0 |
-| **Total** | **1** | **5** | **10** | **10** | **5** |
+| **WetLabOracle (added 2026-03-26)** | **0** | **2** | **5** | **3** | **0** |
+| **Total** | **1** | **7** | **15** | **13** | **5** |
 
-**Overall Risk:** MEDIUM - Critical issue exists in deprecated V1 contract (not used in production). High severity issues require attention before mainnet.
+**Overall Risk:** MEDIUM - Critical issue exists in deprecated V1 contract (not used in production). WetLabOracle is live on testnet with two new High severity findings requiring attention before mainnet.
 
 ---
 
@@ -178,6 +179,105 @@ if (success) {
 ### Node (from cargo-audit 2026-02-28)
 - 2 vulnerabilities (in transitive deps, blocked by upstream)
 - `dotenv` replaced with `dotenvy`
+
+---
+
+---
+
+## WetLabOracle Security Review — 2026-03-26
+
+**Contract:** `WetLabOracle.sol` — deployed 2026-03-21 at `0xF8991A56cB5B9073a3eEC87E95Dfb055fdDF0094` (Arbitrum Sepolia)
+
+### Overview
+
+WetLabOracle allows a set of owner-certified labs to submit physical experiment results on-chain. When `requiredLabConfirmations` labs agree on the same `resultHash` for a task, consensus is reached and GOV token rewards are credited to each confirming lab's `pendingRewards` balance for pull-based claiming.
+
+---
+
+### High Severity
+
+#### W-H1: Reward Pool Insolvency — Rewards Credited Without Balance Check
+**File:** `WetLabOracle.sol:222-231` (`_checkConsensus`)
+**Impact:** Labs can have `pendingRewards` credited that they can never claim.
+
+```solidity
+// Inside _checkConsensus — no balance check before crediting
+pendingRewards[lab] += rewardPerVerification;
+```
+
+If total credited rewards exceed the GOV balance held by the contract, `claimReward()` will revert with "GOV transfer failed" for the last labs to claim. Labs that ran physical experiments would be unable to collect earned rewards.
+
+**Recommendation:** Before crediting, verify the pool has sufficient balance:
+```solidity
+uint256 needed = rewardPerVerification * count;
+require(IERC20(govToken).balanceOf(address(this)) >= needed, "Insufficient reward pool");
+```
+Or add an `emitInsufficientPool` warning event and skip reward crediting rather than reverting — this lets consensus still be recorded even if the pool is empty.
+
+**Status:** Must fix before mainnet.
+
+---
+
+#### W-H2: Single-Step Ownership Transfer (Ownable, not Ownable2Step)
+**File:** `WetLabOracle.sol:23`
+**Impact:** A mistyped address in `transferOwnership()` would permanently lose admin capability: no one could certify labs, adjust rewards, or deposit GOV.
+
+**Recommendation:** Upgrade to `Ownable2Step`:
+```solidity
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+contract WetLabOracle is Ownable2Step, ReentrancyGuard {
+```
+
+**Status:** Should fix before mainnet.
+
+---
+
+### Medium Severity
+
+| ID | Issue | File | Recommendation |
+|----|-------|------|----------------|
+| W-M1 | `oarnRegistry` is stored and validated but never used anywhere in the contract | `:47` | Document as reserved for future task validation, or remove |
+| W-M2 | No `withdrawExcessRewards()` — owner cannot recover mistakenly over-deposited GOV | `:168` | Add owner-only withdrawal capped to `balance - sum(pendingRewards)` |
+| W-M3 | `setRequiredConfirmations` has no upper bound — could be set higher than certified lab count, permanently blocking consensus | `:251` | Add `require(newRequired <= taskLabSubmitters[taskId].length)` or global lab count cap |
+| W-M4 | `setRewardPerVerification` has no bounds — can be set to 0 or astronomically high | `:243` | Add `require(newReward > 0 && newReward <= MAX_REWARD)` |
+| W-M5 | No way to invalidate consensus after the fact — owner cannot override a bad result post-consensus | Design | Consider owner-only `invalidateConsensus(taskId)` for exceptional cases |
+
+---
+
+### Low Severity
+
+| ID | Issue | Recommendation |
+|----|-------|----------------|
+| W-L1 | `metric` string has no length cap — large strings inflate gas cost | `require(bytes(metric).length <= 64)` |
+| W-L2 | O(n²) `_checkConsensus` loop acceptable for small certified lab sets but undocumented | Add NatSpec: "Expected ≤20 certified labs per task" |
+| W-L3 | `block.timestamp` used for `submittedAt` / `verifiedAt` — manipulable within ~15s | Acceptable for this use case; document |
+
+---
+
+### Positive Findings
+
+- **Checks-Effects-Interactions correctly applied** in `claimReward()` — state zeroed before token transfer ✅
+- **`nonReentrant` guards** on all state-changing external functions ✅
+- **Pull-based rewards** — avoids the silent transfer failure issue (H-1) found in TaskRegistryV2 ✅
+- **`requiredLabConfirmations >= 2` enforced** in both constructor and setter ✅
+- **Zero-address checks** on constructor arguments ✅
+- **`rewarded` flag** prevents double-crediting within `_checkConsensus` ✅
+- **No external calls inside `_checkConsensus`** — reentrancy-safe ✅
+- **Immutable `govToken`** prevents admin from swapping the reward token ✅
+
+---
+
+### Action Items for WetLabOracle
+
+| Priority | ID | Action |
+|----------|----|--------|
+| **HIGH** | W-H1 | Add reward pool balance check before crediting in `_checkConsensus` |
+| **HIGH** | W-H2 | Upgrade to `Ownable2Step` |
+| MEDIUM | W-M2 | Add `withdrawExcessRewards()` for owner fund recovery |
+| MEDIUM | W-M3/M4 | Add bounds validation on `setRequiredConfirmations` and `setRewardPerVerification` |
+| LOW | W-M1 | Document or remove unused `oarnRegistry` field |
+
+**Security posture:** Acceptable for testnet. Both High findings require code changes before mainnet deployment. None are exploitable by external actors on testnet (all require either owner action or certified lab access).
 
 ---
 
