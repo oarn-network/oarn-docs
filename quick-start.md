@@ -85,7 +85,7 @@ oarn-node status
 
 Output:
 ```
-OARN Node v0.1.0
+OARN Node v0.1.6
 Status: Running
 Mode: Standard
 Peers: 12 connected
@@ -178,7 +178,7 @@ const result = await waitForTaskResult(taskId);
 ### SDK Installation
 
 ```bash
-npm install @oarn/sdk
+npm install @oarnnetwork/sdk
 ```
 
 ```typescript
@@ -207,7 +207,8 @@ console.log(result);
 
 ## Resources
 
-- Website: https://oarn-network.github.io/oarn-website/
+- Website: https://oarn-network.github.io/oarn-website
+- Dashboard: https://oarn-dashboard.vercel.app/
 - Documentation: https://github.com/oarn-network/oarn-docs
 - GitHub: https://github.com/oarn-network
 - Discord: https://discord.gg/RsrQwNvt
